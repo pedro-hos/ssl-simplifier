@@ -1,7 +1,6 @@
 package org.ssls.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,7 +9,6 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 import org.ssls.model.TrustStoreInfo;
 import org.ssls.model.TrustedCertificate;
@@ -28,14 +26,6 @@ public class SSLServiceTest {
 	
 	@Inject
 	SSLService sslService;
-	
-	@ConfigProperty(name = "working.file")
-	String workingFile;
-	
-	@Test
-	public void shouldNotExceptionThrownAndNotNull() throws IOException {
-		assertNotNull(sslService.readFile(workingFile).get());
-	}
 	
 	@Test
 	public void shoulExceptionThrown() throws IOException {
