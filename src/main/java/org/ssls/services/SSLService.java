@@ -16,6 +16,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.ssls.SSLSMain;
+import org.ssls.model.KeyStoreInfo;
 import org.ssls.model.SSLHandshakeFile;
 import org.ssls.model.TrustStoreInfo;
 import org.ssls.model.TrustedCertificate;
@@ -45,6 +46,15 @@ public class SSLService {
 	@ConfigProperty(name = "regex.trustStore.provider")
 	String trustStoreProviderRegex;
 	
+	@ConfigProperty(name = "regex.keyStore.path")
+	String keyStorePathRegex;
+	
+	@ConfigProperty(name = "regex.keyStore.type")
+	String keyStoreTypeRegex;
+	
+	@ConfigProperty(name = "regex.keyStore.provider")
+	String keyStoreProviderRegex;
+	
 	@ConfigProperty(name = "regex.trustStore.lastTimemodified")
 	String trustStoreLastModifiedRegex;
 	
@@ -64,7 +74,7 @@ public class SSLService {
 		try {
 			
 			LOGGER.info("Analyzing file: " + file);
-			SSLHandshakeFile infos = extractSSLHandshakeInfos(file).orElseThrow();
+			SSLHandshakeFile infos = extractSSLHandshakeInfos(file).orElseThrow(); //TODO Criar uma exception
 			
 			LOGGER.info("Writing File: " + output);
 			new ObjectMapper()
@@ -101,8 +111,24 @@ public class SSLService {
 		sslHandshakeFile.ignoringUnavailableCipher = extractIgnoringUnavailableCiphers(content);
 		sslHandshakeFile.trustStoreInfo = extractTrustStoreInfo(content);
 		sslHandshakeFile.trustedCertificates = extractTrustedCertificates(content);
+		sslHandshakeFile.keystoreInfo = extractKeystoreInfo(content);
 		
 		return Optional.ofNullable(sslHandshakeFile);
+	}
+
+	/**
+	 * @param content
+	 * @return
+	 */
+	protected KeyStoreInfo extractKeystoreInfo(String content) {
+		
+		KeyStoreInfo keyStoreInfo = new KeyStoreInfo();
+		
+		keyStoreInfo.path = getByGroup(getMatcher(keyStorePathRegex, content), 2);
+		keyStoreInfo.type = getByGroup(getMatcher(keyStoreTypeRegex, content), 2);
+		keyStoreInfo.provider = getByGroup(getMatcher(keyStoreProviderRegex, content), 2);
+		
+		return keyStoreInfo;
 	}
 
 	/**

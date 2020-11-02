@@ -11,9 +11,9 @@ import java.util.List;
  */
 public class SSLHandshakeFile {
 
-	public List<String> ignoringUnavailableCipher;
 	public TrustStoreInfo trustStoreInfo;
 	public KeyStoreInfo keystoreInfo;
+	public List<String> ignoringUnavailableCipher;
 	public List<TrustedCertificate> trustedCertificates;
 	
 }

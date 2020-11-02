@@ -8,5 +8,9 @@ package org.ssls.model;
  *
  */
 public class KeyStoreInfo {
+	
+	public String path;
+	public String type;
+	public String provider;
 
 }

@@ -10,6 +10,7 @@ import java.util.List;
 import javax.inject.Inject;
 
 import org.junit.jupiter.api.Test;
+import org.ssls.model.KeyStoreInfo;
 import org.ssls.model.TrustStoreInfo;
 import org.ssls.model.TrustedCertificate;
 
@@ -115,6 +116,30 @@ public class SSLServiceTest {
 		assertEquals("C=AA, O=BBB, OU=CCC, CN=DDD Root", trustedCertificates.get(0).issuer);
 		assertEquals("Fri Apr 18 12:24:22 EDT 2008", trustedCertificates.get(0).validFrom);
 		assertEquals("Thu Apr 13 12:24:22 EDT 2028", trustedCertificates.get(0).validEnd);
+	}
+	
+	@Test
+	public void shouldExtractKeyStoreInfo() {
+		
+		String content = "2020-07-14 13:01:50,244 INFO  [stdout] (default task-1) Ignoring unavailable cipher suite: TLS_DHE_RSA_WITH_AES_256_CBC_SHA\n"
+				+ "2020-07-14 13:01:50,244 INFO  [stdout] (default task-1) Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA\n"
+				+ "2020-07-14 13:01:50,244 INFO  [stdout] (default task-1) Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384\n"
+				+ "2020-07-14 13:01:50,931 INFO  [stdout] (default task-1) keyStore is : \n"
+				+ "2020-07-14 13:01:50,931 INFO  [stdout] (default task-1) keyStore type is : jks\n"
+				+ "2020-07-14 13:01:50,931 INFO  [stdout] (default task-1) keyStore provider is : \n"
+				+ "2020-07-14 13:01:50,496 INFO  [stdout] (default task-1) init truststore\n"
+				+ "2020-07-14 13:01:50,505 INFO  [stdout] (default task-1) adding as trusted cert:\n"
+				+ "2020-07-14 13:01:50,506 INFO  [stdout] (default task-1)   Subject: CN=FOO FOO, O=BAR LTDA., C=BR\n"
+				+ "2020-07-14 13:01:50,506 INFO  [stdout] (default task-1)   Issuer:  CN=FOO FOO, O=BAR LTDA., C=BR\n"
+				+ "2020-07-14 13:01:50,509 INFO  [stdout] (default task-1)   Algorithm: RSA; Serial number: 0xxc35267\n"
+				+ "2020-07-14 13:01:50,509 INFO  [stdout] (default task-1)   Valid from Mon Jun 21 09:30:00 IST 1999 until Mon Jun 22 09:30:00 IST 2020";
+
+		KeyStoreInfo trustStoreInfo = sslService.extractKeystoreInfo(content);
+		
+		assertEquals("", trustStoreInfo.path);
+		assertEquals("jks", trustStoreInfo.type);
+		assertEquals("", trustStoreInfo.provider);
+		
 	}
 
 }
