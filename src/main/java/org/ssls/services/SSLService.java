@@ -1,7 +1,7 @@
 package org.ssls.services;
 
+import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -19,6 +19,8 @@ import org.ssls.SSLSMain;
 import org.ssls.model.SSLHandshakeFile;
 import org.ssls.model.TrustStoreInfo;
 import org.ssls.model.TrustedCertificate;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * 
@@ -48,13 +50,31 @@ public class SSLService {
 	
 	@ConfigProperty(name = "regex.trusted.certificates")
 	String trustedCertificatesRegex;
+	
+	@ConfigProperty(name = "output.file.name")
+	String sslsFileNameOutput;
 
 	/**
 	 * 
 	 * @param file
+	 * @param output 
 	 */
-	public void analyze(final String file) {
-		LOGGER.info("Analyzing file: " + file);
+	public void analyze(final String file, final String output) {
+		
+		try {
+			
+			LOGGER.info("Analyzing file: " + file);
+			SSLHandshakeFile infos = extractSSLHandshakeInfos(file).orElseThrow();
+			
+			LOGGER.info("Writing File: " + output);
+			new ObjectMapper()
+				.writerWithDefaultPrettyPrinter()
+				.writeValue(new File(output + sslsFileNameOutput), infos);
+			
+		} catch (IOException e) {
+			LOGGER.error(e.getMessage());
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -64,7 +84,7 @@ public class SSLService {
 	 * @throws IOException
 	 */
 	protected Optional<String> readFile(final String file) throws IOException {
-		return Optional.of(Files.readString(Paths.get(file), StandardCharsets.UTF_8));
+		return Optional.of(String.join("\n", Files.readAllLines(Paths.get(file))));
 	}
 
 	/**
