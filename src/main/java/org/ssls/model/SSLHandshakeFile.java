@@ -4,6 +4,7 @@
 package org.ssls.model;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author pedro-hos
@@ -11,9 +12,15 @@ import java.util.List;
  */
 public class SSLHandshakeFile {
 
+	public Boolean allowUnsafeRegotiation;
+	public Boolean allowLegacyHelloMessage;
+	public Boolean isInitialHandshake;
+	public Boolean isSecureRegotiation;
+	
 	public TrustStoreInfo trustStoreInfo;
 	public KeyStoreInfo keystoreInfo;
-	public List<String> ignoringUnavailableCipher;
+	public Set<String> ignoringUnavailableCipher;
+	public Set<String> ignoringUnsupportedCipher;
 	public List<TrustedCertificate> trustedCertificates;
 	
 }

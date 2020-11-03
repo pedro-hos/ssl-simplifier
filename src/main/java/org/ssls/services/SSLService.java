@@ -5,8 +5,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,8 +36,11 @@ public class SSLService {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SSLSMain.class);
 	
-	@ConfigProperty(name = "regex.ignoring.cipher")
+	@ConfigProperty(name = "regex.ignoring.unavailable.cipher")
 	String ignoringUnavaiableCipherRegex;
+	
+	@ConfigProperty(name = "regex.ignoring.unsuported.cipher")
+	String ignoringUnsuportedCipherRegex;
 	
 	@ConfigProperty(name = "regex.trustStore.path")
 	String trustStorePathRegex;
@@ -61,8 +66,21 @@ public class SSLService {
 	@ConfigProperty(name = "regex.trusted.certificates")
 	String trustedCertificatesRegex;
 	
+	@ConfigProperty(name = "regex.allow.unsafe.renegotiation")
+	String allowUnsafeRenegotiationRegex;
+	
+	@ConfigProperty(name = "regex.allow.legacy.hello.message")
+	String allowLegacyHelloMessageRegex;
+	
+	@ConfigProperty(name = "regex.is.initial.handshake")
+	String isInitialHandshakeRegex;
+	
+	@ConfigProperty(name = "regex.is.secure.renegotiation")
+	String isSecureRenegotiation;
+	
 	@ConfigProperty(name = "output.file.name")
 	String sslsFileNameOutput;
+	
 
 	/**
 	 * 
@@ -109,11 +127,33 @@ public class SSLService {
 		
 		SSLHandshakeFile sslHandshakeFile = new SSLHandshakeFile();
 		sslHandshakeFile.ignoringUnavailableCipher = extractIgnoringUnavailableCiphers(content);
+		sslHandshakeFile.ignoringUnsupportedCipher = extractIgnoringUnsupportedCiphers(content);
 		sslHandshakeFile.trustStoreInfo = extractTrustStoreInfo(content);
 		sslHandshakeFile.trustedCertificates = extractTrustedCertificates(content);
 		sslHandshakeFile.keystoreInfo = extractKeystoreInfo(content);
 		
+		sslHandshakeFile.allowUnsafeRegotiation = Boolean.valueOf(getByGroup(getMatcher(allowUnsafeRenegotiationRegex, content), 2));
+		sslHandshakeFile.allowLegacyHelloMessage = Boolean.valueOf(getByGroup(getMatcher(allowLegacyHelloMessageRegex, content), 2));
+		sslHandshakeFile.isInitialHandshake = Boolean.valueOf(getByGroup(getMatcher(isInitialHandshakeRegex, content), 2));
+		sslHandshakeFile.isSecureRegotiation = Boolean.valueOf(getByGroup(getMatcher(isSecureRenegotiation, content), 2));
+		
 		return Optional.ofNullable(sslHandshakeFile);
+	}
+
+	/**
+	 * @param content
+	 * @return
+	 */
+	protected Set<String> extractIgnoringUnsupportedCiphers(String content) {
+		Set<String> allMatches = new HashSet<String>();
+		
+		Matcher m = getMatcher(ignoringUnsuportedCipherRegex, content);
+		
+		while(m.find()) {
+			allMatches.add(m.group(2));
+		}
+		
+		return allMatches;
 	}
 
 	/**
@@ -176,9 +216,9 @@ public class SSLService {
 	 * @param content
 	 * @return
 	 */
-	protected List<String> extractIgnoringUnavailableCiphers(final String content) {
+	protected Set<String> extractIgnoringUnavailableCiphers(final String content) {
 		
-		List<String> allMatches = new ArrayList<>();
+		Set<String> allMatches = new HashSet<String>();
 		
 		Matcher m = getMatcher(ignoringUnavaiableCipherRegex, content);
 		
