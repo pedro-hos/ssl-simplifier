@@ -23,6 +23,8 @@ public class SSLHandshakeFile {
 	public KeyStoreInfo keystoreInfo;
 	public Set<String> ignoringUnavailableCipher;
 	public Set<String> ignoringUnsupportedCipher;
+	public Set<String> ignoringDisabledCipher;
+	
 	public List<TrustedCertificate> trustedCertificates;
 	
 }

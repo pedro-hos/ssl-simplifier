@@ -46,6 +46,9 @@ public class SSLService {
 	@ConfigProperty(name = "regex.ignoring.unsuported.cipher")
 	String ignoringUnsuportedCipherRegex;
 	
+	@ConfigProperty(name = "regex.ignoring.disabled.cipher")
+	String ignoringDisabledCipherRegex;
+	
 	@ConfigProperty(name = "regex.trustStore.path")
 	String trustStorePathRegex;
 	
@@ -170,8 +173,10 @@ public class SSLService {
 		
 		SSLHandshakeFile sslHandshakeFile = new SSLHandshakeFile();
 		
-		sslHandshakeFile.ignoringUnavailableCipher = extractIgnoringUnavailableCiphers(content);
-		sslHandshakeFile.ignoringUnsupportedCipher = extractIgnoringUnsupportedCiphers(content);
+		sslHandshakeFile.ignoringUnavailableCipher = extractListByRegexAndGroup(content, ignoringUnavaiableCipherRegex, 2);
+		sslHandshakeFile.ignoringUnsupportedCipher = extractListByRegexAndGroup(content, ignoringUnsuportedCipherRegex, 2);
+		sslHandshakeFile.ignoringDisabledCipher = extractListByRegexAndGroup(content, ignoringDisabledCipherRegex, 2);
+		
 		sslHandshakeFile.trustStoreInfo = extractTrustStoreInfo(content);
 		sslHandshakeFile.trustedCertificates = extractTrustedCertificates(content);
 		sslHandshakeFile.keystoreInfo = extractKeystoreInfo(content);
@@ -217,22 +222,6 @@ public class SSLService {
 	 */
 	private List<String> replaceUnusualCharactersToList(final String value) {
 		return Arrays.asList(value.replaceAll("[\\[\\]\\}\\{]", "").split(","));
-	}
-
-	/**
-	 * @param content
-	 * @return
-	 */
-	protected Set<String> extractIgnoringUnsupportedCiphers(String content) {
-		Set<String> allMatches = new HashSet<String>();
-		
-		Matcher m = getMatcher(ignoringUnsuportedCipherRegex, content);
-		
-		while(m.find()) {
-			allMatches.add(m.group(2));
-		}
-		
-		return allMatches;
 	}
 
 	/**
@@ -290,19 +279,22 @@ public class SSLService {
 		
 		return trustStoreInfo;
 	}
-
+	
 	/**
+	 * 
 	 * @param content
+	 * @param regex
+	 * @param group
 	 * @return
 	 */
-	protected Set<String> extractIgnoringUnavailableCiphers(final String content) {
-		
+	protected Set<String> extractListByRegexAndGroup(final String content, final String regex, final int group) { 
+
 		Set<String> allMatches = new HashSet<String>();
 		
-		Matcher m = getMatcher(ignoringUnavaiableCipherRegex, content);
+		Matcher m = getMatcher(regex, content);
 		
 		while(m.find()) {
-			allMatches.add(m.group(2));
+			allMatches.add(m.group(group));
 		}
 		
 		return allMatches;

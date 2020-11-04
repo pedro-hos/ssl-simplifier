@@ -10,6 +10,7 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 import org.ssls.model.KeyStoreInfo;
 import org.ssls.model.TrustStoreInfo;
@@ -28,6 +29,15 @@ public class SSLServiceTest {
 	
 	@Inject
 	SSLService sslService;
+	
+	@ConfigProperty(name = "regex.ignoring.unavailable.cipher")
+	String ignoringUnavaiableCipherRegex;
+	
+	@ConfigProperty(name = "regex.ignoring.unsuported.cipher")
+	String ignoringUnsuportedCipherRegex;
+	
+	@ConfigProperty(name = "regex.ignoring.disabled.cipher")
+	String ignoringDisabledCipherRegex;
 	
 	@Test
 	public void shoulExceptionThrown() throws IOException {
@@ -59,7 +69,7 @@ public class SSLServiceTest {
 				+ "2020-07-14 13:25:21,149 INFO  [org.wildfly.extension.undertow] (MSC service thread 1-1) WFLYUT0004: Undertow 1.3.28.Final-redhat-4 stopping\n"
 				+ "2020-07-14 13:25:31,467 INFO  [org.jboss.as] (MSC service thread 1-2) WFLYSRV0050: JBoss EAP 7.0.6.GA (WildFly Core 2.1.15.Final-redhat-1) stopped in 10585ms";
 		
-		Set<String> ignoringUnavailableCiphers = sslService.extractIgnoringUnavailableCiphers(content);
+		Set<String> ignoringUnavailableCiphers = sslService.extractListByRegexAndGroup(content, ignoringUnavaiableCipherRegex, 2);
 		assertEquals(6, ignoringUnavailableCiphers.size());
 		assertTrue(ignoringUnavailableCiphers.stream().anyMatch(cipher -> "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384".equals(cipher)));
 		
@@ -159,7 +169,7 @@ public class SSLServiceTest {
 				+ "2020-07-14 13:25:21,149 INFO  [org.wildfly.extension.undertow] (MSC service thread 1-1) WFLYUT0004: Undertow 1.3.28.Final-redhat-4 stopping\n"
 				+ "2020-07-14 13:25:31,467 INFO  [org.jboss.as] (MSC service thread 1-2) WFLYSRV0050: JBoss EAP 7.0.6.GA (WildFly Core 2.1.15.Final-redhat-1) stopped in 10585ms";
 		
-		Set<String> ignoringUnsupportedCiphers = sslService.extractIgnoringUnsupportedCiphers(content);
+		Set<String> ignoringUnsupportedCiphers = sslService.extractListByRegexAndGroup(content, ignoringUnsuportedCipherRegex, 2);
 		assertEquals(4, ignoringUnsupportedCiphers.size());
 		assertTrue(ignoringUnsupportedCiphers.stream().anyMatch(cipher -> "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 for TLSv1".equals(cipher)));
 		
