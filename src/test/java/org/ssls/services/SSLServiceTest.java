@@ -164,5 +164,6 @@ public class SSLServiceTest {
 		assertTrue(ignoringUnsupportedCiphers.stream().anyMatch(cipher -> "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 for TLSv1".equals(cipher)));
 		
 	}
+	
 
 }

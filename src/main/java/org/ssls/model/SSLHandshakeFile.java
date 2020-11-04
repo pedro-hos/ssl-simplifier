@@ -17,6 +17,8 @@ public class SSLHandshakeFile {
 	public Boolean isInitialHandshake;
 	public Boolean isSecureRegotiation;
 	
+	public ClientHelloInfo clientHelloInfo;
+	
 	public TrustStoreInfo trustStoreInfo;
 	public KeyStoreInfo keystoreInfo;
 	public Set<String> ignoringUnavailableCipher;

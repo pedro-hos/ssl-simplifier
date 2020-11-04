@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.ssls.SSLSMain;
+import org.ssls.model.ClientHelloInfo;
 import org.ssls.model.KeyStoreInfo;
 import org.ssls.model.SSLHandshakeFile;
 import org.ssls.model.TrustStoreInfo;
@@ -33,6 +35,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ApplicationScoped
 public class SSLService {
+	
+	private static final String EMPTY_LINES_REGEX = "(?m)^[ \t]*\r?\n";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SSLSMain.class);
 	
@@ -76,7 +80,46 @@ public class SSLService {
 	String isInitialHandshakeRegex;
 	
 	@ConfigProperty(name = "regex.is.secure.renegotiation")
-	String isSecureRenegotiation;
+	String isSecureRenegotiationRegex;
+	
+	@ConfigProperty(name = "regex.client.hello")
+	String clientHelloRegex;
+	      
+	@ConfigProperty(name = "regex.client.hello.title")
+	String clientHelloTitleRegex;
+	
+	@ConfigProperty(name = "regex.client.hello.randomCookie")
+	String clientHelloRandomCookieRegex;
+	
+	@ConfigProperty(name = "regex.client.hello.sessionId")
+	String clientHelloSessionIdRegex;
+	
+	@ConfigProperty(name = "regex.client.hello.cipherSuites")
+	String clientHelloCipherSuitesRegex;
+	
+	@ConfigProperty(name = "regex.client.hello.compressionMethods")
+	String clientHelloCompressionMethodsRegex;
+	
+	@ConfigProperty(name = "regex.client.hello.ellipticCurvesCurveNames")
+	String clientHelloEllipticCurvesCurveNamesRegex;
+	
+	@ConfigProperty(name = "regex.client.hello.ecPointFormatsFormats")
+	String clientHelloEcPointFormatsFormatsRegex;
+	
+	@ConfigProperty(name = "regex.client.hello.signatureAlgorithms")
+	String clientHelloSignatureAlgorithmsRegex;
+	
+	@ConfigProperty(name = "regex.client.hello.serverName")
+	String clientHelloServerNameRegex;
+	
+	@ConfigProperty(name = "regex.client.hello.write")
+	String clientHelloWriteRegex;
+	
+	@ConfigProperty(name = "regex.client.hello.read")
+	String clientHelloReadRegex;
+	
+	@ConfigProperty(name = "regex.server.hello")
+	String serverHelloRegex;
 	
 	@ConfigProperty(name = "output.file.name")
 	String sslsFileNameOutput;
@@ -112,7 +155,7 @@ public class SSLService {
 	 * @throws IOException
 	 */
 	protected Optional<String> readFile(final String file) throws IOException {
-		return Optional.of(String.join("\n", Files.readAllLines(Paths.get(file))));
+		return Optional.of(String.join("\n", Files.readAllLines(Paths.get(file))).replaceAll(EMPTY_LINES_REGEX, ""));
 	}
 
 	/**
@@ -126,6 +169,7 @@ public class SSLService {
 		String content = readFile(file).orElseThrow();
 		
 		SSLHandshakeFile sslHandshakeFile = new SSLHandshakeFile();
+		
 		sslHandshakeFile.ignoringUnavailableCipher = extractIgnoringUnavailableCiphers(content);
 		sslHandshakeFile.ignoringUnsupportedCipher = extractIgnoringUnsupportedCiphers(content);
 		sslHandshakeFile.trustStoreInfo = extractTrustStoreInfo(content);
@@ -135,9 +179,44 @@ public class SSLService {
 		sslHandshakeFile.allowUnsafeRegotiation = Boolean.valueOf(getByGroup(getMatcher(allowUnsafeRenegotiationRegex, content), 2));
 		sslHandshakeFile.allowLegacyHelloMessage = Boolean.valueOf(getByGroup(getMatcher(allowLegacyHelloMessageRegex, content), 2));
 		sslHandshakeFile.isInitialHandshake = Boolean.valueOf(getByGroup(getMatcher(isInitialHandshakeRegex, content), 2));
-		sslHandshakeFile.isSecureRegotiation = Boolean.valueOf(getByGroup(getMatcher(isSecureRenegotiation, content), 2));
+		sslHandshakeFile.isSecureRegotiation = Boolean.valueOf(getByGroup(getMatcher(isSecureRenegotiationRegex, content), 2));
+		
+		String helloContent = content.substring(content.indexOf(clientHelloRegex), content.indexOf(serverHelloRegex));
+		sslHandshakeFile.clientHelloInfo = extractClientHelloInfo(helloContent);
 		
 		return Optional.ofNullable(sslHandshakeFile);
+	}
+
+	/**
+	 * @param content
+	 * @return
+	 */
+	protected ClientHelloInfo extractClientHelloInfo(String content) {
+		
+		ClientHelloInfo clientHelloInfo = new ClientHelloInfo();
+		
+		clientHelloInfo.title = getByGroup(getMatcher(clientHelloTitleRegex, content), 1);
+		clientHelloInfo.randomCookie = getByGroup(getMatcher(clientHelloRandomCookieRegex, content), 2);
+		clientHelloInfo.sessionID = getByGroup(getMatcher(clientHelloSessionIdRegex, content), 2);
+		clientHelloInfo.cipherSuites = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloCipherSuitesRegex, content), 2));
+		clientHelloInfo.compressionMethods = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloCompressionMethodsRegex, content), 2));
+		clientHelloInfo.ellipticCurvesCurveNames = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloEllipticCurvesCurveNamesRegex, content), 2));
+		clientHelloInfo.ecPointFormatsFormats = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloEcPointFormatsFormatsRegex, content), 2));
+		clientHelloInfo.signatureAlgorithms = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloSignatureAlgorithmsRegex, content), 2));
+		clientHelloInfo.serverName = getByGroup(getMatcher(clientHelloServerNameRegex, content), 2);
+		clientHelloInfo.write = getByGroup(getMatcher(clientHelloWriteRegex, content), 2);
+		clientHelloInfo.read = getByGroup(getMatcher(clientHelloReadRegex, content), 2);
+		
+		return clientHelloInfo;
+	}
+	
+	/**
+	 * 
+	 * @param value
+	 * @return
+	 */
+	private List<String> replaceUnusualCharactersToList(final String value) {
+		return Arrays.asList(value.replaceAll("[\\[\\]\\}\\{]", "").split(","));
 	}
 
 	/**
