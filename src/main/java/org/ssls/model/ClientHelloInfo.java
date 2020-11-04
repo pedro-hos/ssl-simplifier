@@ -9,17 +9,14 @@ import java.util.List;
  * @author pedro-hos
  *
  */
-public class ClientHelloInfo {
+public class ClientHelloInfo extends CommonHelloInfo {
 	
-	public String title;
-	public String randomCookie;
-	public String sessionID;
-	public List<String> cipherSuites;
-	public List<String> compressionMethods;
-	public List<String> ellipticCurvesCurveNames;
-	public List<String> ecPointFormatsFormats;
-	public List<String> signatureAlgorithms;
+	private static final long serialVersionUID = 6476655989393256485L;
+	
 	public String serverName;
+	public List<String> signatureAlgorithms;
+	public List<String> ellipticCurvesCurveNames;
+	public List<String> cipherSuites;
 	public String write;
 	public String read;
 	

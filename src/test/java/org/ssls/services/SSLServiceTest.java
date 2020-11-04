@@ -7,6 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 
@@ -173,6 +176,16 @@ public class SSLServiceTest {
 		assertEquals(4, ignoringUnsupportedCiphers.size());
 		assertTrue(ignoringUnsupportedCiphers.stream().anyMatch(cipher -> "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 for TLSv1".equals(cipher)));
 		
+	}
+	
+	@Test
+	public void shouldExtractClientHelloInfo() {
+		
+	}
+	
+	@Test
+	public void shouldExtractServerHelloInfo() throws IOException {
+	    
 	}
 	
 

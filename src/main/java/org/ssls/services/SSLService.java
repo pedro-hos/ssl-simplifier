@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,9 +20,11 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.ssls.SSLSMain;
+import org.ssls.model.Chain;
 import org.ssls.model.ClientHelloInfo;
 import org.ssls.model.KeyStoreInfo;
 import org.ssls.model.SSLHandshakeFile;
+import org.ssls.model.ServerHelloInfo;
 import org.ssls.model.TrustStoreInfo;
 import org.ssls.model.TrustedCertificate;
 
@@ -91,23 +94,23 @@ public class SSLService {
 	@ConfigProperty(name = "regex.client.hello.title")
 	String clientHelloTitleRegex;
 	
-	@ConfigProperty(name = "regex.client.hello.randomCookie")
-	String clientHelloRandomCookieRegex;
+	@ConfigProperty(name = "regex.hello.common.randomCookie")
+	String commonHelloRandomCookieRegex;
 	
-	@ConfigProperty(name = "regex.client.hello.sessionId")
-	String clientHelloSessionIdRegex;
+	@ConfigProperty(name = "regex.hello.common.sessionId")
+	String commonHelloSessionIdRegex;
 	
 	@ConfigProperty(name = "regex.client.hello.cipherSuites")
 	String clientHelloCipherSuitesRegex;
 	
-	@ConfigProperty(name = "regex.client.hello.compressionMethods")
-	String clientHelloCompressionMethodsRegex;
+	@ConfigProperty(name = "regex.hello.common.compressionMethods")
+	String commontHelloCompressionMethodsRegex;
 	
 	@ConfigProperty(name = "regex.client.hello.ellipticCurvesCurveNames")
 	String clientHelloEllipticCurvesCurveNamesRegex;
 	
-	@ConfigProperty(name = "regex.client.hello.ecPointFormatsFormats")
-	String clientHelloEcPointFormatsFormatsRegex;
+	@ConfigProperty(name = "regex.hello.common.ecPointFormatsFormats")
+	String commonHelloEcPointFormatsFormatsRegex;
 	
 	@ConfigProperty(name = "regex.client.hello.signatureAlgorithms")
 	String clientHelloSignatureAlgorithmsRegex;
@@ -124,9 +127,17 @@ public class SSLService {
 	@ConfigProperty(name = "regex.server.hello")
 	String serverHelloRegex;
 	
+	@ConfigProperty(name = "regex.server.hello.title")
+	String serverHelloTitleRegex;
+	
 	@ConfigProperty(name = "output.file.name")
 	String sslsFileNameOutput;
-	
+
+	@ConfigProperty(name = "regex.server.hello.cipherSuite")
+	String serverHelloCipherSuiteRegex;
+
+	@ConfigProperty(name = "regex.server.hello.renegotiationInfo")
+	String serverHelloRenegotiationInfoRegex;
 
 	/**
 	 * 
@@ -189,7 +200,82 @@ public class SSLService {
 		String helloContent = content.substring(content.indexOf(clientHelloRegex), content.indexOf(serverHelloRegex));
 		sslHandshakeFile.clientHelloInfo = extractClientHelloInfo(helloContent);
 		
+		sslHandshakeFile.serverHelloInfo = getServerHelloInfo(getServerHelloContent(content).get());
+		
 		return Optional.ofNullable(sslHandshakeFile);
+	}
+
+	/**
+	 * @param serverHelloContent
+	 * @return
+	 */
+	protected ServerHelloInfo getServerHelloInfo(String content) {
+		
+		ServerHelloInfo serverHelloInfo = new ServerHelloInfo();
+		
+		serverHelloInfo.title = getByGroup(getMatcher(serverHelloTitleRegex, content), 1);
+		serverHelloInfo.randomCookie = getByGroup(getMatcher(commonHelloRandomCookieRegex, content), 2);
+		serverHelloInfo.sessionID = getByGroup(getMatcher(commonHelloSessionIdRegex, content), 2);
+		serverHelloInfo.compressionMethods = replaceUnusualCharactersToList(getByGroup(getMatcher(commontHelloCompressionMethodsRegex, content), 2));
+		serverHelloInfo.ecPointFormatsFormats = replaceUnusualCharactersToList(getByGroup(getMatcher(commonHelloEcPointFormatsFormatsRegex, content), 2));
+		serverHelloInfo.cipherSuite = getByGroup(getMatcher(serverHelloCipherSuiteRegex, content), 2);
+		serverHelloInfo.renegotiationInfo = getByGroup(getMatcher(serverHelloRenegotiationInfoRegex, content), 2);
+		serverHelloInfo.chains = extractChains(content);
+		
+		return serverHelloInfo;
+	}
+
+	/**
+	 * @param content
+	 * @return
+	 */
+	protected Set<Chain> extractChains(String content) {
+		
+		Set<Chain> allMatches = new HashSet<Chain>();
+		String chainRegexStart = "chain\\s*\\[\\d*\\]";
+		
+	    Object[] matchers = getMatcher(chainRegexStart, content).results().toArray();
+	    
+	    for (int i = 0; i < matchers.length; i++) {
+	    	
+	    	Chain chain = new Chain();
+	    	
+			int start2 = ((MatchResult) matchers[i]).start();
+			
+			if (i < matchers.length - 1) {
+				
+				int endIndex = ((MatchResult) matchers[i + 1]).start();
+				chain.value = (content.substring(start2, endIndex));
+				
+			} else {
+				chain.value = (content.substring(start2));
+			}
+			
+			allMatches.add(chain);
+		}
+	    
+		return allMatches;
+	}
+
+	/**
+	 * @param content
+	 */
+	protected Optional<String> getServerHelloContent(final String content) {
+		
+		Optional<String> serverHelloContent = Optional.empty();
+		
+		int start = content.indexOf(serverHelloRegex);
+		int end = 0;
+		
+	    Matcher matcher = getMatcher("(\\s+])(.*\\n+)(.*\\*\\*\\*)", content);
+	    
+	    if(matcher.find()){
+	    	end = matcher.start(3);
+	    	serverHelloContent = Optional.of(content.substring(start, end));
+	    }
+	    
+		return serverHelloContent;
+		
 	}
 
 	/**
@@ -201,12 +287,12 @@ public class SSLService {
 		ClientHelloInfo clientHelloInfo = new ClientHelloInfo();
 		
 		clientHelloInfo.title = getByGroup(getMatcher(clientHelloTitleRegex, content), 1);
-		clientHelloInfo.randomCookie = getByGroup(getMatcher(clientHelloRandomCookieRegex, content), 2);
-		clientHelloInfo.sessionID = getByGroup(getMatcher(clientHelloSessionIdRegex, content), 2);
+		clientHelloInfo.randomCookie = getByGroup(getMatcher(commonHelloRandomCookieRegex, content), 2);
+		clientHelloInfo.sessionID = getByGroup(getMatcher(commonHelloSessionIdRegex, content), 2);
 		clientHelloInfo.cipherSuites = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloCipherSuitesRegex, content), 2));
-		clientHelloInfo.compressionMethods = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloCompressionMethodsRegex, content), 2));
+		clientHelloInfo.compressionMethods = replaceUnusualCharactersToList(getByGroup(getMatcher(commontHelloCompressionMethodsRegex, content), 2));
 		clientHelloInfo.ellipticCurvesCurveNames = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloEllipticCurvesCurveNamesRegex, content), 2));
-		clientHelloInfo.ecPointFormatsFormats = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloEcPointFormatsFormatsRegex, content), 2));
+		clientHelloInfo.ecPointFormatsFormats = replaceUnusualCharactersToList(getByGroup(getMatcher(commonHelloEcPointFormatsFormatsRegex, content), 2));
 		clientHelloInfo.signatureAlgorithms = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloSignatureAlgorithmsRegex, content), 2));
 		clientHelloInfo.serverName = getByGroup(getMatcher(clientHelloServerNameRegex, content), 2);
 		clientHelloInfo.write = getByGroup(getMatcher(clientHelloWriteRegex, content), 2);
@@ -304,7 +390,7 @@ public class SSLService {
 		return matcher.find() ? matcher.group(group) : "";
 	}
 	
-	private Matcher getMatcher(final String regex, final String value) {
+	protected Matcher getMatcher(final String regex, final String value) {
 		final Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
 		return pattern.matcher(value);
 	}
