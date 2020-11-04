@@ -40,6 +40,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class SSLService {
 	
 	private static final String EMPTY_LINES_REGEX = "(?m)^[ \t]*\r?\n";
+	private static final String JBOSS_LOG_PREFIX = "\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2},\\d{3}\\s+\\w{3,7}\\s+\\[.*?\\]\\s+\\(.*\\)";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SSLSMain.class);
 	
@@ -138,6 +139,12 @@ public class SSLService {
 
 	@ConfigProperty(name = "regex.server.hello.renegotiationInfo")
 	String serverHelloRenegotiationInfoRegex;
+	
+	@ConfigProperty(name = "regex.chain.name")
+	String chainNameRegex;
+
+	@ConfigProperty(name = "regex.chain.version")
+	String chainVersionRegex;
 
 	/**
 	 * 
@@ -169,7 +176,7 @@ public class SSLService {
 	 * @throws IOException
 	 */
 	protected Optional<String> readFile(final String file) throws IOException {
-		return Optional.of(String.join("\n", Files.readAllLines(Paths.get(file))).replaceAll(EMPTY_LINES_REGEX, ""));
+		return Optional.of(String.join("\n", Files.readAllLines(Paths.get(file))).replaceAll(EMPTY_LINES_REGEX, "").replaceAll(JBOSS_LOG_PREFIX, ""));
 	}
 
 	/**
@@ -238,23 +245,76 @@ public class SSLService {
 	    
 	    for (int i = 0; i < matchers.length; i++) {
 	    	
-	    	Chain chain = new Chain();
-	    	
-			int start2 = ((MatchResult) matchers[i]).start();
+			int startIndex = ((MatchResult) matchers[i]).start();
 			
 			if (i < matchers.length - 1) {
 				
 				int endIndex = ((MatchResult) matchers[i + 1]).start();
-				chain.value = (content.substring(start2, endIndex));
+				allMatches.add(extractChainInfo(content.substring(startIndex, endIndex)));
 				
 			} else {
-				chain.value = (content.substring(start2));
+				allMatches.add(extractChainInfo(content.substring(startIndex)));
 			}
 			
-			allMatches.add(chain);
 		}
 	    
 		return allMatches;
+	}
+
+	@ConfigProperty(name = "regex.chain.subject")
+	String chainSubjectRegex;
+	
+	@ConfigProperty(name = "regex.chain.signatureAlgorithm")
+	String chainSignatureAlgorithmRegex;
+	
+	@ConfigProperty(name = "regex.chain.key")
+	String chainKeyRegex;
+	
+	@ConfigProperty(name = "regex.chain.modulus")
+	String chainModulusRegex;
+	
+	@ConfigProperty(name = "regex.chain.publicExponent")
+	String chainPublicExponentRegex;
+	
+	@ConfigProperty(name = "regex.chain.issuer")
+	String chainIssuerRegex;
+	
+	@ConfigProperty(name = "regex.chain.serialNumber")
+	String chainSerialNumberRegex;
+	
+	@ConfigProperty(name = "regex.chain.certificateExtensions")
+	String chainCertificateExtensionsQuantityRegex;
+	
+	@ConfigProperty(name = "regex.chain.validity")
+	String chainValidityRegex;
+	
+	/**
+	 * @param substring
+	 * @return
+	 */
+	protected Chain extractChainInfo(String content) {
+		
+		Chain chain = new Chain();
+		
+		chain.name = getByGroup(getMatcher(chainNameRegex, content), 1);
+		chain.version = getByGroup(getMatcher(chainVersionRegex, content), 2);
+		chain.subject = getByGroup(getMatcher(chainSubjectRegex, content), 2);
+		chain.signatureAlgorithm = getByGroup(getMatcher(chainSignatureAlgorithmRegex, content), 2);
+		
+		Matcher matcher = getMatcher(chainValidityRegex, content);
+		
+		if(matcher.find()) {
+			chain.validity  = matcher.group(2).concat(matcher.group(5));
+		}
+		
+		chain.key = getByGroup(getMatcher(chainKeyRegex, content), 2);
+		chain.modulus = getByGroup(getMatcher(chainModulusRegex, content), 2);
+		chain.publicExponent = getByGroup(getMatcher(chainPublicExponentRegex, content), 2);
+		chain.issuer = getByGroup(getMatcher(chainIssuerRegex, content), 2);
+		chain.serialNumber = getByGroup(getMatcher(chainSerialNumberRegex, content), 2);
+		chain.certificateExtensionsQuantity = getByGroup(getMatcher(chainCertificateExtensionsQuantityRegex, content), 2);
+		
+		return chain;
 	}
 
 	/**
