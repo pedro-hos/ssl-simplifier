@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.MatchResult;
@@ -146,6 +147,39 @@ public class SSLService {
 	@ConfigProperty(name = "regex.chain.version")
 	String chainVersionRegex;
 
+	@ConfigProperty(name = "regex.chain.subject")
+	String chainSubjectRegex;
+	
+	@ConfigProperty(name = "regex.chain.signatureAlgorithm")
+	String chainSignatureAlgorithmRegex;
+	
+	@ConfigProperty(name = "regex.chain.key")
+	String chainKeyRegex;
+	
+	@ConfigProperty(name = "regex.chain.modulus")
+	String chainModulusRegex;
+	
+	@ConfigProperty(name = "regex.chain.publicExponent")
+	String chainPublicExponentRegex;
+	
+	@ConfigProperty(name = "regex.chain.issuer")
+	String chainIssuerRegex;
+	
+	@ConfigProperty(name = "regex.chain.serialNumber")
+	String chainSerialNumberRegex;
+	
+	@ConfigProperty(name = "regex.chain.certificateExtensions")
+	String chainCertificateExtensionsQuantityRegex;
+	
+	@ConfigProperty(name = "regex.chain.validity")
+	String chainValidityRegex;
+	
+	@ConfigProperty(name = "regex.chain.algorithm")
+	String chainAlgorithmRegex;
+	
+	@ConfigProperty(name = "regex.chain.signature")
+	String chainSignatureRegex;
+	
 	/**
 	 * 
 	 * @param file
@@ -261,33 +295,6 @@ public class SSLService {
 		return allMatches;
 	}
 
-	@ConfigProperty(name = "regex.chain.subject")
-	String chainSubjectRegex;
-	
-	@ConfigProperty(name = "regex.chain.signatureAlgorithm")
-	String chainSignatureAlgorithmRegex;
-	
-	@ConfigProperty(name = "regex.chain.key")
-	String chainKeyRegex;
-	
-	@ConfigProperty(name = "regex.chain.modulus")
-	String chainModulusRegex;
-	
-	@ConfigProperty(name = "regex.chain.publicExponent")
-	String chainPublicExponentRegex;
-	
-	@ConfigProperty(name = "regex.chain.issuer")
-	String chainIssuerRegex;
-	
-	@ConfigProperty(name = "regex.chain.serialNumber")
-	String chainSerialNumberRegex;
-	
-	@ConfigProperty(name = "regex.chain.certificateExtensions")
-	String chainCertificateExtensionsQuantityRegex;
-	
-	@ConfigProperty(name = "regex.chain.validity")
-	String chainValidityRegex;
-	
 	/**
 	 * @param substring
 	 * @return
@@ -313,8 +320,50 @@ public class SSLService {
 		chain.issuer = getByGroup(getMatcher(chainIssuerRegex, content), 2);
 		chain.serialNumber = getByGroup(getMatcher(chainSerialNumberRegex, content), 2);
 		chain.certificateExtensionsQuantity = getByGroup(getMatcher(chainCertificateExtensionsQuantityRegex, content), 2);
+		chain.algorithm = replaceUnusualCharactersToList(getByGroup(getMatcher(chainAlgorithmRegex, content), 2));
+		chain.signature = getByGroup(getMatcher(chainSignatureRegex, content), 2);
+		
+		chain.certificateExtensions = extractCertificateExtensions(content, chain.certificateExtensionsQuantity);
 		
 		return chain;
+	}
+
+	/**
+	 * @param content
+	 * @param certificateExtensionsQuantity
+	 * @return
+	 */
+	protected List<String> extractCertificateExtensions(String content, String quantity) {
+		
+		Objects.requireNonNull(quantity);
+		Objects.requireNonNull(content);
+		
+		List<String> certificatesExtensions = new ArrayList<String>();
+		
+		int maxCertificatesExtensions = Integer.parseInt(quantity);
+		
+		for(int aux = 1; aux < maxCertificatesExtensions + 1; aux++) {
+			
+			int start = content.indexOf("[" + aux + "]");
+			int end = 0;
+			
+			if (aux == maxCertificatesExtensions) {
+				
+				Matcher matcher = getMatcher(chainAlgorithmRegex, content);
+				
+				if(matcher.find()) {
+					end = matcher.start(); //This could cause some problems
+				}
+				
+			} else {
+				end = content.indexOf("[" + (aux + 1) + "]");
+			}
+			
+			certificatesExtensions.add(content.substring(start, end).replaceAll("\n", "").trim());
+		}
+		
+		
+		return certificatesExtensions;
 	}
 
 	/**

@@ -5,6 +5,7 @@ package org.ssls.model;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author pedro-hos
@@ -26,4 +27,6 @@ public class Chain implements Serializable {
 	public String serialNumber;
 	public String certificateExtensionsQuantity;
 	public List<String> certificateExtensions;
+	public List<String> algorithm;
+	public String signature;
 }
