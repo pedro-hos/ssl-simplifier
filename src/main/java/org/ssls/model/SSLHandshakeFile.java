@@ -15,6 +15,7 @@ public class SSLHandshakeFile implements Serializable {
 
 	private static final long serialVersionUID = -2569123227530935336L;
 	
+	public JavaInfos javaInfos;
 	public Boolean allowUnsafeRegotiation;
 	public Boolean allowLegacyHelloMessage;
 	public Boolean isInitialHandshake;

@@ -4,11 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -190,29 +188,29 @@ public class SSLServiceTest {
 	@Test
 	public void shouldExtractServerHelloInfo() throws IOException {
 		
-		/*
-		 * String content = sslService.readFile(
-		 * "/home/pesilva/Documentos/workspace/sslhandshake/server.log").get();
-		 * 
-		 * 
-		 * int start = content.indexOf("ServerHello");
-		 * 
-		 * Pattern pattern = Pattern.compile("(\\s+])(.*\\n+)(.*\\*\\*\\*)"); Matcher
-		 * matcher = pattern.matcher(content);
-		 * 
-		 * int end = 0;
-		 * 
-		 * if(matcher.find()){ end = matcher.start(3); }
-		 * 
-		 * String substring = content.substring(start, end);
-		 * 
-		 * Set<Chain> extractChains = sslService.extractChains(substring);
-		 * 
-		 * String writeValueAsString = new ObjectMapper()
-		 * .writerWithDefaultPrettyPrinter() .writeValueAsString(extractChains);
-		 * 
-		 * System.out.println(writeValueAsString);
-		 */
+		String content = sslService.readFile("/home/pesilva/Documentos/workspace/sslhandshake/server.log").get();
+		
+		
+		int start = content.indexOf("ServerHello");
+		
+		Pattern pattern = Pattern.compile("(\\s+])(.*\\n+)(.*\\*\\*\\*)");
+	    Matcher matcher = pattern.matcher(content);
+	    
+	    int end = 0;
+	    
+	    if(matcher.find()){
+	    	end = matcher.start(3);
+	    }
+	    
+	    String substring = content.substring(start, end);
+	    
+	    Set<Chain> extractChains = sslService.extractChains(substring);
+	    
+	    String writeValueAsString = new ObjectMapper()
+		.writerWithDefaultPrettyPrinter()
+		.writeValueAsString(extractChains);
+	    
+	    System.out.println(writeValueAsString);
 	    
 	    
 	}

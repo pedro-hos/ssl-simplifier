@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.ssls.SSLSMain;
 import org.ssls.model.Chain;
 import org.ssls.model.ClientHelloInfo;
+import org.ssls.model.JavaInfos;
 import org.ssls.model.KeyStoreInfo;
 import org.ssls.model.SSLHandshakeFile;
 import org.ssls.model.ServerHelloInfo;
@@ -180,22 +181,41 @@ public class SSLService {
 	@ConfigProperty(name = "regex.chain.signature")
 	String chainSignatureRegex;
 	
+	@ConfigProperty(name = "regex.java.version")
+	String javaVersionRegex;
+	
+	@ConfigProperty(name = "regex.java.name")
+	String javaNameRegex;
+	
+	@ConfigProperty(name = "regex.java.vendor")
+	String javaVendorRegex;
+	
 	/**
 	 * 
 	 * @param file
 	 * @param output 
+	 * @param isWeb 
+	 * @param isFile 
 	 */
-	public void analyze(final String file, final String output) {
+	public void analyze(final String file, final String output, Boolean isFile, Boolean isWeb) {
 		
 		try {
 			
 			LOGGER.info("Analyzing file: " + file);
 			SSLHandshakeFile infos = extractSSLHandshakeInfos(file).orElseThrow(); //TODO Criar uma exception
 			
-			LOGGER.info("Writing File: " + output);
-			new ObjectMapper()
-				.writerWithDefaultPrettyPrinter()
-				.writeValue(new File(output + sslsFileNameOutput), infos);
+			if( isFile ) {
+				
+				LOGGER.info("Writing File: " + output);
+				Objects.nonNull(output);
+				
+				new ObjectMapper()
+					.writerWithDefaultPrettyPrinter()
+					.writeValue(new File(output + sslsFileNameOutput), infos);
+				
+			} else if(isWeb) {
+				
+			}
 			
 		} catch (IOException e) {
 			LOGGER.error(e.getMessage());
@@ -225,6 +245,8 @@ public class SSLService {
 		
 		SSLHandshakeFile sslHandshakeFile = new SSLHandshakeFile();
 		
+		sslHandshakeFile.javaInfos = extractJavaInfos(content);
+		
 		sslHandshakeFile.ignoringUnavailableCipher = extractListByRegexAndGroup(content, ignoringUnavaiableCipherRegex, 2);
 		sslHandshakeFile.ignoringUnsupportedCipher = extractListByRegexAndGroup(content, ignoringUnsuportedCipherRegex, 2);
 		sslHandshakeFile.ignoringDisabledCipher = extractListByRegexAndGroup(content, ignoringDisabledCipherRegex, 2);
@@ -244,6 +266,18 @@ public class SSLService {
 		sslHandshakeFile.serverHelloInfo = getServerHelloInfo(getServerHelloContent(content).get());
 		
 		return Optional.ofNullable(sslHandshakeFile);
+	}
+
+	/**
+	 * @param content
+	 * @return
+	 */
+	private JavaInfos extractJavaInfos(String content) {
+		JavaInfos java = new JavaInfos();
+		java.version = getByGroup(getMatcher(javaVersionRegex, content), 2);
+		java.name = getByGroup(getMatcher(javaNameRegex, content), 2);
+		java.vendor = getByGroup(getMatcher(javaVendorRegex, content), 2);
+		return java;
 	}
 
 	/**
@@ -344,7 +378,7 @@ public class SSLService {
 		
 		for(int aux = 1; aux < maxCertificatesExtensions + 1; aux++) {
 			
-			int start = content.indexOf("[" + aux + "]");
+			int start = content.indexOf("[" + aux + "]:");
 			int end = 0;
 			
 			if (aux == maxCertificatesExtensions) {
