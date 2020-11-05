@@ -1,48 +1,79 @@
+**Be aware that this project is in Test phase. Please, let me know if you have any question**
+
 # ssl-simplifier project
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+This project is expected to read `SSL Debug` log from JBoss EAP or based log files.
+
+Also, this project uses Quarkus, the Supersonic Subatomic Java Framework.
 
 If you want to learn more about Quarkus, please visit its website: https://quarkus.io/ .
 
-## Running the application in dev mode
+# Running
 
-You can run your application in dev mode that enables live coding using:
-```shell script
-./mvnw compile quarkus:dev
+If you want to run this project, you'll need the following:
+
+* Java 11+
+* Maven 3.6+
+
+Run the following command to compile the project
+
+```
+./mvnw clean install
 ```
 
-## Packaging and running the application
+Now, running the `jar` **target/ssl-simplifier-1.0.0-SNAPSHOT-runner.jar** with `--help` parameter, you'll see:
 
-The application can be packaged using:
-```shell script
-./mvnw package
 ```
-It produces the `ssl-simplifier-1.0.0-SNAPSHOT-runner.jar` file in the `/target` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/lib` directory.
+$ java -jar target/ssl-simplifier-1.0.0-SNAPSHOT-runner.jar --help
 
-If you want to build an _über-jar_, execute the following command:
-```shell script
-./mvnw package -Dquarkus.package.type=uber-jar
-```
+__  ____  __  _____   ___  __ ____  ______ 
+ --/ __ \/ / / / _ | / _ \/ //_/ / / / __/ 
+ -/ /_/ / /_/ / __ |/ , _/ ,< / /_/ /\ \   
+--\___\_\____/_/ |_/_/|_/_/|_|\____/___/   
+2020-11-05 13:41:42,065 INFO  [io.quarkus] (main) ssl-simplifier 1.0.0-SNAPSHOT on JVM (powered by Quarkus 1.9.1.Final) started in 1.364s. Listening on: http://0.0.0.0:8080
+2020-11-05 13:41:42,076 INFO  [io.quarkus] (main) Profile prod activated. 
+2020-11-05 13:41:42,077 INFO  [io.quarkus] (main) Installed features: [agroal, cdi, hibernate-orm, hibernate-orm-panache, jdbc-h2, mutiny, narayana-jta, picocli, qute, resteasy-jackson, resteasy-jsonb, resteasy-qute, smallrye-context-propagation]
 
-The application is now runnable using `java -jar target/ssl-simplifier-1.0.0-SNAPSHOT-runner.jar`.
+Usage: SSL Simplifier [-hV] [-if] [-iw] -f=<file> [-o=<output>]
+  -f, --file=<file>       The file path with the SSL Handshake log
+  -h, --help              Show this help message and exit.
+      -if, --isfile       This option shows the report by json file at the
+                            'output' parameter
+      -iw, --isweb        This option shows the report by web page at http:
+                            //localhost:8080/
+  -o, --output=<output>   The output file path that we'll save the analyze file
+  -V, --version           Print version information and exit.
+2020-11-05 13:41:42,271 INFO  [io.quarkus] (main) ssl-simplifier stopped in 0.043s
 
-## Creating a native executable
-
-You can create a native executable using: 
-```shell script
-./mvnw package -Pnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using: 
-```shell script
-./mvnw package -Pnative -Dquarkus.native.container-build=true
 ```
 
-You can then execute your native executable with: `./target/ssl-simplifier-1.0.0-SNAPSHOT-runner`
+**the parameter `-iw` or `--isweb` is not implemented, so far.**
 
-If you want to learn more about building native executables, please consult https://quarkus.io/guides/maven-tooling.html.
+Running the `jar` file with `-if` or `--isfile` the `--output` is required. The following is an example:
 
-# Command Mode
+```
+$ java -jar target/ssl-simplifier-1.0.0-SNAPSHOT-runner.jar -f /sslhandshake/server.log -o /sslhandshake/ -if
+```
 
-Guide: https://quarkus.io/guides/command-mode-reference
+Refer the **ssls_report.json** file. 
+
+for example:
+
+~~~
+{
+  "javaInfos" : {
+    "version" : "1.8.0_144",
+    "name" : "Java Platform API Specification",
+    "vendor" : "Oracle Corporation"
+  },
+  "allowUnsafeRegotiation" : false,
+  "allowLegacyHelloMessage" : true,
+  "isInitialHandshake" : true,
+  "isSecureRegotiation" : false,
+  "clientHelloInfo" : {
+    "title" : "ClientHello, TLSv1.2",
+    (...)
+  }
+  (...)
+}
+~~~

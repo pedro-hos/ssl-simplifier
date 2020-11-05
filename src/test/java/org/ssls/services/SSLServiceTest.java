@@ -188,31 +188,6 @@ public class SSLServiceTest {
 	@Test
 	public void shouldExtractServerHelloInfo() throws IOException {
 		
-		String content = sslService.readFile("/home/pesilva/Documentos/workspace/sslhandshake/server.log").get();
-		
-		
-		int start = content.indexOf("ServerHello");
-		
-		Pattern pattern = Pattern.compile("(\\s+])(.*\\n+)(.*\\*\\*\\*)");
-	    Matcher matcher = pattern.matcher(content);
-	    
-	    int end = 0;
-	    
-	    if(matcher.find()){
-	    	end = matcher.start(3);
-	    }
-	    
-	    String substring = content.substring(start, end);
-	    
-	    Set<Chain> extractChains = sslService.extractChains(substring);
-	    
-	    String writeValueAsString = new ObjectMapper()
-		.writerWithDefaultPrettyPrinter()
-		.writeValueAsString(extractChains);
-	    
-	    System.out.println(writeValueAsString);
-	    
-	    
 	}
 	
 
