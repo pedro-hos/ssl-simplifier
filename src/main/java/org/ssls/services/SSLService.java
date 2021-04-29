@@ -1,9 +1,6 @@
 package org.ssls.services;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -13,22 +10,21 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.ssls.SSLSMain;
 import org.ssls.model.Chain;
 import org.ssls.model.ClientHelloInfo;
-import org.ssls.model.JavaInfos;
 import org.ssls.model.KeyStoreInfo;
 import org.ssls.model.SSLHandshakeFile;
 import org.ssls.model.ServerHelloInfo;
 import org.ssls.model.TrustStoreInfo;
 import org.ssls.model.TrustedCertificate;
+import org.ssls.utils.RegexUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -41,10 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @ApplicationScoped
 public class SSLService {
 	
-	private static final String EMPTY_LINES_REGEX = "(?m)^[ \t]*\r?\n";
-	private static final String JBOSS_LOG_PREFIX = "\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2},\\d{3}\\s+\\w{3,7}\\s+\\[.*?\\]\\s+\\(.*\\)";
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(SSLSMain.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(SSLService.class);
 	
 	@ConfigProperty(name = "regex.ignoring.unavailable.cipher")
 	String ignoringUnavaiableCipherRegex;
@@ -133,9 +126,6 @@ public class SSLService {
 	@ConfigProperty(name = "regex.server.hello.title")
 	String serverHelloTitleRegex;
 	
-	@ConfigProperty(name = "output.file.name")
-	String sslsFileNameOutput;
-
 	@ConfigProperty(name = "regex.server.hello.cipherSuite")
 	String serverHelloCipherSuiteRegex;
 
@@ -181,14 +171,11 @@ public class SSLService {
 	@ConfigProperty(name = "regex.chain.signature")
 	String chainSignatureRegex;
 	
-	@ConfigProperty(name = "regex.java.version")
-	String javaVersionRegex;
+	@Inject
+	public FileService fileService;
 	
-	@ConfigProperty(name = "regex.java.name")
-	String javaNameRegex;
-	
-	@ConfigProperty(name = "regex.java.vendor")
-	String javaVendorRegex;
+	@Inject
+	public JavaInfosService javaInfoService;
 	
 	/**
 	 * 
@@ -209,9 +196,7 @@ public class SSLService {
 				LOGGER.info("Writing File: " + output);
 				Objects.nonNull(output);
 				
-				new ObjectMapper()
-					.writerWithDefaultPrettyPrinter()
-					.writeValue(new File(output + sslsFileNameOutput), infos);
+				fileService.writeFile(output, new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(infos));
 				
 			} else if(isWeb) {
 				
@@ -223,15 +208,6 @@ public class SSLService {
 		}
 	}
 
-	/**
-	 * 
-	 * @param file
-	 * @return
-	 * @throws IOException
-	 */
-	protected Optional<String> readFile(final String file) throws IOException {
-		return Optional.of(String.join("\n", Files.readAllLines(Paths.get(file))).replaceAll(EMPTY_LINES_REGEX, "").replaceAll(JBOSS_LOG_PREFIX, ""));
-	}
 
 	/**
 	 * 
@@ -241,44 +217,43 @@ public class SSLService {
 	 */
 	protected Optional<SSLHandshakeFile> extractSSLHandshakeInfos(final String file) throws IOException {
 		
-		String content = readFile(file).orElseThrow();
+		String content = fileService.readFile(file).orElseThrow();
 		
 		SSLHandshakeFile sslHandshakeFile = new SSLHandshakeFile();
 		
-		sslHandshakeFile.javaInfos = extractJavaInfos(content);
+		sslHandshakeFile.javaInfos = javaInfoService.extractJavaInfos(content);
 		
-		sslHandshakeFile.ignoringUnavailableCipher = extractListByRegexAndGroup(content, ignoringUnavaiableCipherRegex, 2);
-		sslHandshakeFile.ignoringUnsupportedCipher = extractListByRegexAndGroup(content, ignoringUnsuportedCipherRegex, 2);
-		sslHandshakeFile.ignoringDisabledCipher = extractListByRegexAndGroup(content, ignoringDisabledCipherRegex, 2);
+		sslHandshakeFile.ignoringUnavailableCipher = RegexUtils.extractListByRegexAndGroup(content, ignoringUnavaiableCipherRegex, 2);
+		sslHandshakeFile.ignoringUnsupportedCipher = RegexUtils.extractListByRegexAndGroup(content, ignoringUnsuportedCipherRegex, 2);
+		sslHandshakeFile.ignoringDisabledCipher = RegexUtils.extractListByRegexAndGroup(content, ignoringDisabledCipherRegex, 2);
 		
 		sslHandshakeFile.trustStoreInfo = extractTrustStoreInfo(content);
 		sslHandshakeFile.trustedCertificates = extractTrustedCertificates(content);
+		
 		sslHandshakeFile.keystoreInfo = extractKeystoreInfo(content);
 		
-		sslHandshakeFile.allowUnsafeRegotiation = Boolean.valueOf(getByGroup(getMatcher(allowUnsafeRenegotiationRegex, content), 2));
-		sslHandshakeFile.allowLegacyHelloMessage = Boolean.valueOf(getByGroup(getMatcher(allowLegacyHelloMessageRegex, content), 2));
-		sslHandshakeFile.isInitialHandshake = Boolean.valueOf(getByGroup(getMatcher(isInitialHandshakeRegex, content), 2));
-		sslHandshakeFile.isSecureRegotiation = Boolean.valueOf(getByGroup(getMatcher(isSecureRenegotiationRegex, content), 2));
+		sslHandshakeFile.allowUnsafeRegotiation = Boolean.valueOf(RegexUtils.getByGroup(RegexUtils.getMatcher(allowUnsafeRenegotiationRegex, content), 2));
+		sslHandshakeFile.allowLegacyHelloMessage = Boolean.valueOf(RegexUtils.getByGroup(RegexUtils.getMatcher(allowLegacyHelloMessageRegex, content), 2));
+		sslHandshakeFile.isInitialHandshake = Boolean.valueOf(RegexUtils.getByGroup(RegexUtils.getMatcher(isInitialHandshakeRegex, content), 2));
+		sslHandshakeFile.isSecureRegotiation = Boolean.valueOf(RegexUtils.getByGroup(RegexUtils.getMatcher(isSecureRenegotiationRegex, content), 2));
 		
-		String helloContent = content.substring(content.indexOf(clientHelloRegex), content.indexOf(serverHelloRegex));
-		sslHandshakeFile.clientHelloInfo = extractClientHelloInfo(helloContent);
+		int start = content.indexOf(clientHelloRegex);
+		int end = content.indexOf(serverHelloRegex);
 		
-		sslHandshakeFile.serverHelloInfo = getServerHelloInfo(getServerHelloContent(content).get());
+		if(start < end) {
+			
+			String helloContent = content.substring(start, end);
+			sslHandshakeFile.clientHelloInfo = extractClientHelloInfo(helloContent);
+			
+		} else {
+			LOGGER.info("Can't find Hello Content"); //TODO: rever isso! 
+		}
+		
+		sslHandshakeFile.serverHelloInfo = getServerHelloInfo(getServerHelloContent(content).orElse("Not Found"));
 		
 		return Optional.ofNullable(sslHandshakeFile);
 	}
 
-	/**
-	 * @param content
-	 * @return
-	 */
-	private JavaInfos extractJavaInfos(String content) {
-		JavaInfos java = new JavaInfos();
-		java.version = getByGroup(getMatcher(javaVersionRegex, content), 2);
-		java.name = getByGroup(getMatcher(javaNameRegex, content), 2);
-		java.vendor = getByGroup(getMatcher(javaVendorRegex, content), 2);
-		return java;
-	}
 
 	/**
 	 * @param serverHelloContent
@@ -288,13 +263,13 @@ public class SSLService {
 		
 		ServerHelloInfo serverHelloInfo = new ServerHelloInfo();
 		
-		serverHelloInfo.title = getByGroup(getMatcher(serverHelloTitleRegex, content), 1);
-		serverHelloInfo.randomCookie = getByGroup(getMatcher(commonHelloRandomCookieRegex, content), 2);
-		serverHelloInfo.sessionID = getByGroup(getMatcher(commonHelloSessionIdRegex, content), 2);
-		serverHelloInfo.compressionMethods = replaceUnusualCharactersToList(getByGroup(getMatcher(commontHelloCompressionMethodsRegex, content), 2));
-		serverHelloInfo.ecPointFormatsFormats = replaceUnusualCharactersToList(getByGroup(getMatcher(commonHelloEcPointFormatsFormatsRegex, content), 2));
-		serverHelloInfo.cipherSuite = getByGroup(getMatcher(serverHelloCipherSuiteRegex, content), 2);
-		serverHelloInfo.renegotiationInfo = getByGroup(getMatcher(serverHelloRenegotiationInfoRegex, content), 2);
+		serverHelloInfo.title = RegexUtils.getByGroup(RegexUtils.getMatcher(serverHelloTitleRegex, content), 1);
+		serverHelloInfo.randomCookie = RegexUtils.getByGroup(RegexUtils.getMatcher(commonHelloRandomCookieRegex, content), 2);
+		serverHelloInfo.sessionID = RegexUtils.getByGroup(RegexUtils.getMatcher(commonHelloSessionIdRegex, content), 2);
+		serverHelloInfo.compressionMethods = replaceUnusualCharactersToList(RegexUtils.getByGroup(RegexUtils.getMatcher(commontHelloCompressionMethodsRegex, content), 2));
+		serverHelloInfo.ecPointFormatsFormats = replaceUnusualCharactersToList(RegexUtils.getByGroup(RegexUtils.getMatcher(commonHelloEcPointFormatsFormatsRegex, content), 2));
+		serverHelloInfo.cipherSuite = RegexUtils.getByGroup(RegexUtils.getMatcher(serverHelloCipherSuiteRegex, content), 2);
+		serverHelloInfo.renegotiationInfo = RegexUtils.getByGroup(RegexUtils.getMatcher(serverHelloRenegotiationInfoRegex, content), 2);
 		serverHelloInfo.chains = extractChains(content);
 		
 		return serverHelloInfo;
@@ -309,7 +284,7 @@ public class SSLService {
 		Set<Chain> allMatches = new HashSet<Chain>();
 		String chainRegexStart = "chain\\s*\\[\\d*\\]";
 		
-	    Object[] matchers = getMatcher(chainRegexStart, content).results().toArray();
+	    Object[] matchers = RegexUtils.getMatcher(chainRegexStart, content).results().toArray();
 	    
 	    for (int i = 0; i < matchers.length; i++) {
 	    	
@@ -337,25 +312,25 @@ public class SSLService {
 		
 		Chain chain = new Chain();
 		
-		chain.name = getByGroup(getMatcher(chainNameRegex, content), 1);
-		chain.version = getByGroup(getMatcher(chainVersionRegex, content), 2);
-		chain.subject = getByGroup(getMatcher(chainSubjectRegex, content), 2);
-		chain.signatureAlgorithm = getByGroup(getMatcher(chainSignatureAlgorithmRegex, content), 2);
+		chain.name = RegexUtils.getByGroup(RegexUtils.getMatcher(chainNameRegex, content), 1);
+		chain.version = RegexUtils.getByGroup(RegexUtils.getMatcher(chainVersionRegex, content), 2);
+		chain.subject = RegexUtils.getByGroup(RegexUtils.getMatcher(chainSubjectRegex, content), 2);
+		chain.signatureAlgorithm = RegexUtils.getByGroup(RegexUtils.getMatcher(chainSignatureAlgorithmRegex, content), 2);
 		
-		Matcher matcher = getMatcher(chainValidityRegex, content);
+		Matcher matcher = RegexUtils.getMatcher(chainValidityRegex, content);
 		
 		if(matcher.find()) {
 			chain.validity  = matcher.group(2).concat(matcher.group(5));
 		}
 		
-		chain.key = getByGroup(getMatcher(chainKeyRegex, content), 2);
-		chain.modulus = getByGroup(getMatcher(chainModulusRegex, content), 2);
-		chain.publicExponent = getByGroup(getMatcher(chainPublicExponentRegex, content), 2);
-		chain.issuer = getByGroup(getMatcher(chainIssuerRegex, content), 2);
-		chain.serialNumber = getByGroup(getMatcher(chainSerialNumberRegex, content), 2);
-		chain.certificateExtensionsQuantity = getByGroup(getMatcher(chainCertificateExtensionsQuantityRegex, content), 2);
-		chain.algorithm = replaceUnusualCharactersToList(getByGroup(getMatcher(chainAlgorithmRegex, content), 2));
-		chain.signature = getByGroup(getMatcher(chainSignatureRegex, content), 2);
+		chain.key = RegexUtils.getByGroup(RegexUtils.getMatcher(chainKeyRegex, content), 2);
+		chain.modulus = RegexUtils.getByGroup(RegexUtils.getMatcher(chainModulusRegex, content), 2);
+		chain.publicExponent = RegexUtils.getByGroup(RegexUtils.getMatcher(chainPublicExponentRegex, content), 2);
+		chain.issuer = RegexUtils.getByGroup(RegexUtils.getMatcher(chainIssuerRegex, content), 2);
+		chain.serialNumber = RegexUtils.getByGroup(RegexUtils.getMatcher(chainSerialNumberRegex, content), 2);
+		chain.certificateExtensionsQuantity = RegexUtils.getByGroup(RegexUtils.getMatcher(chainCertificateExtensionsQuantityRegex, content), 2);
+		chain.algorithm = replaceUnusualCharactersToList(RegexUtils.getByGroup(RegexUtils.getMatcher(chainAlgorithmRegex, content), 2));
+		chain.signature = RegexUtils.getByGroup(RegexUtils.getMatcher(chainSignatureRegex, content), 2);
 		
 		chain.certificateExtensions = extractCertificateExtensions(content, chain.certificateExtensionsQuantity);
 		
@@ -383,7 +358,7 @@ public class SSLService {
 			
 			if (aux == maxCertificatesExtensions) {
 				
-				Matcher matcher = getMatcher(chainAlgorithmRegex, content);
+				Matcher matcher = RegexUtils.getMatcher(chainAlgorithmRegex, content);
 				
 				if(matcher.find()) {
 					end = matcher.start(); //This could cause some problems
@@ -393,7 +368,11 @@ public class SSLService {
 				end = content.indexOf("[" + (aux + 1) + "]");
 			}
 			
-			certificatesExtensions.add(content.substring(start, end).replaceAll("\n", "").trim());
+			if(start < end) {
+				certificatesExtensions.add(content.substring(start, end).replaceAll("\n", "").trim());
+			} else {
+				LOGGER.info("Can't find Certificate Extensions");
+			}
 		}
 		
 		
@@ -407,12 +386,18 @@ public class SSLService {
 		
 		Optional<String> serverHelloContent = Optional.empty();
 		
+		if(!content.matches(serverHelloTitleRegex)) {
+			LOGGER.info("File has not any Server Hello Info");
+			return serverHelloContent;
+		}
+		
 		int start = content.indexOf(serverHelloRegex);
 		int end = 0;
 		
-	    Matcher matcher = getMatcher("(\\s+])(.*\\n+)(.*\\*\\*\\*)", content);
+	    Matcher matcher = RegexUtils.getMatcher("(\\s+])(.*\\n+)(.*\\*\\*\\*)", content);
 	    
 	    if(matcher.find()){
+	    	
 	    	end = matcher.start(3);
 	    	serverHelloContent = Optional.of(content.substring(start, end));
 	    }
@@ -429,17 +414,17 @@ public class SSLService {
 		
 		ClientHelloInfo clientHelloInfo = new ClientHelloInfo();
 		
-		clientHelloInfo.title = getByGroup(getMatcher(clientHelloTitleRegex, content), 1);
-		clientHelloInfo.randomCookie = getByGroup(getMatcher(commonHelloRandomCookieRegex, content), 2);
-		clientHelloInfo.sessionID = getByGroup(getMatcher(commonHelloSessionIdRegex, content), 2);
-		clientHelloInfo.cipherSuites = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloCipherSuitesRegex, content), 2));
-		clientHelloInfo.compressionMethods = replaceUnusualCharactersToList(getByGroup(getMatcher(commontHelloCompressionMethodsRegex, content), 2));
-		clientHelloInfo.ellipticCurvesCurveNames = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloEllipticCurvesCurveNamesRegex, content), 2));
-		clientHelloInfo.ecPointFormatsFormats = replaceUnusualCharactersToList(getByGroup(getMatcher(commonHelloEcPointFormatsFormatsRegex, content), 2));
-		clientHelloInfo.signatureAlgorithms = replaceUnusualCharactersToList(getByGroup(getMatcher(clientHelloSignatureAlgorithmsRegex, content), 2));
-		clientHelloInfo.serverName = getByGroup(getMatcher(clientHelloServerNameRegex, content), 2);
-		clientHelloInfo.write = getByGroup(getMatcher(clientHelloWriteRegex, content), 2);
-		clientHelloInfo.read = getByGroup(getMatcher(clientHelloReadRegex, content), 2);
+		clientHelloInfo.title = RegexUtils.getByGroup(RegexUtils.getMatcher(clientHelloTitleRegex, content), 1);
+		clientHelloInfo.randomCookie = RegexUtils.getByGroup(RegexUtils.getMatcher(commonHelloRandomCookieRegex, content), 2);
+		clientHelloInfo.sessionID = RegexUtils.getByGroup(RegexUtils.getMatcher(commonHelloSessionIdRegex, content), 2);
+		clientHelloInfo.cipherSuites = replaceUnusualCharactersToList(RegexUtils.getByGroup(RegexUtils.getMatcher(clientHelloCipherSuitesRegex, content), 2));
+		clientHelloInfo.compressionMethods = replaceUnusualCharactersToList(RegexUtils.getByGroup(RegexUtils.getMatcher(commontHelloCompressionMethodsRegex, content), 2));
+		clientHelloInfo.ellipticCurvesCurveNames = replaceUnusualCharactersToList(RegexUtils.getByGroup(RegexUtils.getMatcher(clientHelloEllipticCurvesCurveNamesRegex, content), 2));
+		clientHelloInfo.ecPointFormatsFormats = replaceUnusualCharactersToList(RegexUtils.getByGroup(RegexUtils.getMatcher(commonHelloEcPointFormatsFormatsRegex, content), 2));
+		clientHelloInfo.signatureAlgorithms = replaceUnusualCharactersToList(RegexUtils.getByGroup(RegexUtils.getMatcher(clientHelloSignatureAlgorithmsRegex, content), 2));
+		clientHelloInfo.serverName = RegexUtils.getByGroup(RegexUtils.getMatcher(clientHelloServerNameRegex, content), 2);
+		clientHelloInfo.write = RegexUtils.getByGroup(RegexUtils.getMatcher(clientHelloWriteRegex, content), 2);
+		clientHelloInfo.read = RegexUtils.getByGroup(RegexUtils.getMatcher(clientHelloReadRegex, content), 2);
 		
 		return clientHelloInfo;
 	}
@@ -461,9 +446,9 @@ public class SSLService {
 		
 		KeyStoreInfo keyStoreInfo = new KeyStoreInfo();
 		
-		keyStoreInfo.path = getByGroup(getMatcher(keyStorePathRegex, content), 2);
-		keyStoreInfo.type = getByGroup(getMatcher(keyStoreTypeRegex, content), 2);
-		keyStoreInfo.provider = getByGroup(getMatcher(keyStoreProviderRegex, content), 2);
+		keyStoreInfo.path = RegexUtils.getByGroup(RegexUtils.getMatcher(keyStorePathRegex, content), 2);
+		keyStoreInfo.type = RegexUtils.getByGroup(RegexUtils.getMatcher(keyStoreTypeRegex, content), 2);
+		keyStoreInfo.provider = RegexUtils.getByGroup(RegexUtils.getMatcher(keyStoreProviderRegex, content), 2);
 		
 		return keyStoreInfo;
 	}
@@ -476,7 +461,7 @@ public class SSLService {
 		
 		List<TrustedCertificate> trustedCertificates = new ArrayList<>();
 		
-		Matcher m = getMatcher(trustedCertificatesRegex, content);
+		Matcher m = RegexUtils.getMatcher(trustedCertificatesRegex, content);
 		
 		while(m.find()) {
 			
@@ -501,42 +486,12 @@ public class SSLService {
 		
 		TrustStoreInfo trustStoreInfo = new TrustStoreInfo();
 		
-		trustStoreInfo.path = getByGroup(getMatcher(trustStorePathRegex, content), 2);
-		trustStoreInfo.type = getByGroup(getMatcher(trustStoreTypeRegex, content), 2);
-		trustStoreInfo.provider = getByGroup(getMatcher(trustStoreProviderRegex, content), 2);
-		trustStoreInfo.lastTimemodified = getByGroup(getMatcher(trustStoreLastModifiedRegex, content), 2);
+		trustStoreInfo.path = RegexUtils.getByGroup(RegexUtils.getMatcher(trustStorePathRegex, content), 2);
+		trustStoreInfo.type = RegexUtils.getByGroup(RegexUtils.getMatcher(trustStoreTypeRegex, content), 2);
+		trustStoreInfo.provider = RegexUtils.getByGroup(RegexUtils.getMatcher(trustStoreProviderRegex, content), 2);
+		trustStoreInfo.lastTimemodified = RegexUtils.getByGroup(RegexUtils.getMatcher(trustStoreLastModifiedRegex, content), 2);
 		
 		return trustStoreInfo;
 	}
-	
-	/**
-	 * 
-	 * @param content
-	 * @param regex
-	 * @param group
-	 * @return
-	 */
-	protected Set<String> extractListByRegexAndGroup(final String content, final String regex, final int group) { 
-
-		Set<String> allMatches = new HashSet<String>();
-		
-		Matcher m = getMatcher(regex, content);
-		
-		while(m.find()) {
-			allMatches.add(m.group(group));
-		}
-		
-		return allMatches;
-	}
-	
-	private String getByGroup(final Matcher matcher, final int group) {
-		return matcher.find() ? matcher.group(group) : "";
-	}
-	
-	protected Matcher getMatcher(final String regex, final String value) {
-		final Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
-		return pattern.matcher(value);
-	}
-	
 
 }
