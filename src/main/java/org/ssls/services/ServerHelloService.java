@@ -1,6 +1,6 @@
 package org.ssls.services;
 
-import javax.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.ApplicationScoped;
 
 /**
  * 

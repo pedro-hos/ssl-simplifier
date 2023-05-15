@@ -3,13 +3,13 @@
  */
 package org.ssls.services;
 
-import javax.enterprise.context.ApplicationScoped;
-
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.ssls.model.JavaInfos;
 import org.ssls.utils.RegexUtils;
+
+import jakarta.enterprise.context.ApplicationScoped;
 
 /**
  * @author pedro-hos@outlook.com

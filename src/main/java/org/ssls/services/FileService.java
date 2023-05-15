@@ -9,11 +9,11 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Optional;
 
-import javax.enterprise.context.ApplicationScoped;
-
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jakarta.enterprise.context.ApplicationScoped;
 
 /**
  * @author pedro-hos@outlook.com

@@ -11,9 +11,6 @@ import java.util.Set;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +24,9 @@ import org.ssls.model.TrustedCertificate;
 import org.ssls.utils.RegexUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 /**
  * 

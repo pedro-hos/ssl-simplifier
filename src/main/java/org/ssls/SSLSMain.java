@@ -1,6 +1,5 @@
 package org.ssls;
 
-import javax.inject.Inject;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +8,7 @@ import org.ssls.services.SSLService;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
+import jakarta.inject.Inject;
 import picocli.CommandLine;
 
 /**
