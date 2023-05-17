@@ -198,8 +198,8 @@ public class SSLService {
 				
 				fileService.writeFile(output, new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(infos));
 				
-			} else if(isWeb) {
-				
+			} else if(isWeb) { 
+				//TODO: create this 
 			}
 			
 		} catch (IOException e) {
